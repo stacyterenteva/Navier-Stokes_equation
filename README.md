@@ -1,1 +1,1 @@
-# ---Physics-Informed-Neural-Networks
+# Navier-Stokes_equation
