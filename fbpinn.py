@@ -7,8 +7,8 @@ import matplotlib.animation as animation
 
 nu = 0.01
 
-class NavierStokes():
-    def __init__(self, X, Y, T, u, v):
+class FBPINN():
+    def __init__(self, X, Y, T, u, v, n):
 
         self.x = torch.tensor(X, dtype=torch.float32, requires_grad=True)
         self.y = torch.tensor(Y, dtype=torch.float32, requires_grad=True)
@@ -16,14 +16,14 @@ class NavierStokes():
 
         self.u = torch.tensor(u, dtype=torch.float32)
         self.v = torch.tensor(v, dtype=torch.float32)
+        self.n = n
+        self.nets = self.create_nets()
 
         #null vector to test against f and g:
         self.null = torch.zeros((self.x.shape[0], 1))
 
-        # initialize network:
-        self.network()
 
-        self.optimizer = torch.optim.LBFGS(self.net.parameters(), lr=1, max_iter=2000, max_eval=5000,
+        self.optimizer = torch.optim.LBFGS(self.net.parameters(), lr=1, max_iter=200000, max_eval=50000,
                                            history_size=50, tolerance_grad=1e-05, tolerance_change=0.5 * np.finfo(float).eps,
                                            line_search_fn="strong_wolfe")
 
@@ -35,29 +35,32 @@ class NavierStokes():
         #iteration number
         self.iter = 0
 
-    def network(self):
+    def create_nets(self):
+      nets = []
+      for i in range(self.n):
 
-        self.net = nn.Sequential(
-            nn.Linear(3, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 20), nn.Tanh(),
-            nn.Linear(20, 2))
 
-    def function(self, x, y, t):
+          self.net = nn.Sequential(
+              nn.Linear(3, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 20), nn.Tanh(),
+              nn.Linear(20, 2))
+          nets.append(self.net)
+          return nets
+
+    def function(self, x, y, t, net):
 
         res = self.net(torch.hstack((x, y, t)))
         psi, p = res[:, 0:1], res[:, 1:2]
 
         u = torch.autograd.grad(psi, y, grad_outputs=torch.ones_like(psi), create_graph=True)[0] #retain_graph=True,
         v = -1.*torch.autograd.grad(psi, x, grad_outputs=torch.ones_like(psi), create_graph=True)[0]
-        u_true.append(sum(u))
-        v_true.append(sum(v))
 
         u_x = torch.autograd.grad(u, x, grad_outputs=torch.ones_like(u), create_graph=True)[0]
         u_xx = torch.autograd.grad(u_x, x, grad_outputs=torch.ones_like(u_x), create_graph=True)[0]
@@ -85,9 +88,6 @@ class NavierStokes():
 
         # u, v, p, g and f predictions:
         u_prediction, v_prediction, p_prediction, f_prediction, g_prediction = self.function(self.x, self.y, self.t)
-        u_preds.append(sum(u_prediction))
-        v_preds.append(sum(v_prediction))
-
 
         # calculate losses
         u_loss = self.mse(u_prediction, self.u)
@@ -146,7 +146,6 @@ u = UU.flatten()[:, None]  # NT x 1
 v = VV.flatten()[:, None]  # NT x 1
 p = PP.flatten()[:, None]  # NT x 1
 
-
 # Training Data
 idx = np.random.choice(N * T, N_train, replace=False)
 x_train = x[idx, :]
@@ -155,22 +154,23 @@ t_train = t[idx, :]
 u_train = u[idx, :]
 v_train = v[idx, :]
 
+'''
 pinn = NavierStokes(x_train, y_train, t_train, u_train, v_train)
 
 pinn.train()
 
 torch.save(pinn.net.state_dict(), 'model.pt')
+'''
 
-pinn = NavierStokes(x_train, y_train, t_train, u_train, v_train)
+pinn = FBPINN(x_train, y_train, t_train, u_train, v_train, n = 7)
 pinn.net.load_state_dict(torch.load('model.pt'))
 pinn.net.eval()
-
 
 x_test = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
 y_test = torch.tensor(y_test, dtype=torch.float32, requires_grad=True)
 t_test = torch.tensor(t_test, dtype=torch.float32, requires_grad=True)
 
-u_out, v_out, p_out, f_out, g_out = pinn.function(x_test, y_test, t_test)
+u_out, v_out, p_out, f_out, g_out = pinn.function(x_test, y_test, t_test, 7)
 
 u_plot = p_out.data.cpu().numpy()
 u_plot = np.reshape(u_plot, (50, 100))
@@ -196,4 +196,5 @@ ani = animation.FuncAnimation(fig, animate, 20, interval=1, blit=False)
 #ani.save('p_field_lbfgs.gif')
 #plt.close()
 # Display the plot
+plt.show()
 plt.show()
