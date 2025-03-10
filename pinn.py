@@ -1,6 +1,3 @@
-"""
-@author: Computational Domain
-"""
 
 import torch
 import torch.nn as nn
@@ -10,6 +7,7 @@ from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 import time
 from datetime import datetime
+from sklearn.metrics import r2_score
 
 nu = 0.01
 
@@ -172,6 +170,17 @@ x_test = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
 y_test = torch.tensor(y_test, dtype=torch.float32, requires_grad=True)
 t_test = torch.tensor(t_test, dtype=torch.float32, requires_grad=True)
 
+u_pred, v_pred = pinn.function(x_test, y_test, t_test)
+u_pred = u_pred.detach().numpy()
+v_pred = v_pred.detach().numpy()
+
+u_true = u_test
+v_true = v_test
+
+r2_u = r2_score(u_true, u_pred)
+
+
+print(f'R^2 for u: {r2_u}')
 
 
 # def animate(i):
