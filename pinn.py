@@ -170,7 +170,8 @@ x_test = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
 y_test = torch.tensor(y_test, dtype=torch.float32, requires_grad=True)
 t_test = torch.tensor(t_test, dtype=torch.float32, requires_grad=True)
 
-u_pred, v_pred = pinn.function(x_test, y_test, t_test)
+u_pred, v_pred, _, _, _ = pinn.function(x_test, y_test, t_test)
+
 u_pred = u_pred.detach().numpy()
 v_pred = v_pred.detach().numpy()
 
