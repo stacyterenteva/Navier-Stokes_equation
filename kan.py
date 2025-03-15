@@ -1,6 +1,4 @@
-"""
-@author: Computational Domain
-"""
+
 !pip install pykan
 import torch
 import torch.nn as nn
